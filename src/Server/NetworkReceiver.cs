@@ -13,7 +13,7 @@ public class NetworkReceiver : IDisposable
 {
     private readonly UdpClient _udpClient;
     private readonly VirtualControllerManager _controllerManager;
-    private readonly Dictionary<string, ClientInfo> _clientTracking; // Track by IP:Port
+    private readonly Dictionary<byte, ClientInfo> _clientTracking;
     private bool _isDisposed = false;
     private bool _isRunning = false;
     
@@ -23,14 +23,12 @@ public class NetworkReceiver : IDisposable
     private class ClientInfo
     {
         public IPEndPoint EndPoint { get; set; }
-        public byte ControllerId { get; set; } // Assigned controller ID
         public DateTime LastPacketTime { get; set; }
         public long PacketsReceived { get; set; }
         
-        public ClientInfo(IPEndPoint endPoint, byte controllerId)
+        public ClientInfo(IPEndPoint endPoint)
         {
             EndPoint = endPoint;
-            ControllerId = controllerId;
             LastPacketTime = DateTime.Now;
             PacketsReceived = 0;
         }
@@ -39,7 +37,7 @@ public class NetworkReceiver : IDisposable
     public NetworkReceiver(VirtualControllerManager controllerManager, int port = NetworkConfig.DEFAULT_PORT)
     {
         _controllerManager = controllerManager ?? throw new ArgumentNullException(nameof(controllerManager));
-        _clientTracking = new Dictionary<string, ClientInfo>();
+        _clientTracking = new Dictionary<byte, ClientInfo>();
         
         try
         {
@@ -128,25 +126,21 @@ public class NetworkReceiver : IDisposable
             return;
         }
         
-        // Track client by IP:Port
-        string clientKey = clientEndPoint.ToString();
-        byte controllerId = 0; // Default to controller 0 (can be extended for multi-controller)
-        
-        if (!_clientTracking.ContainsKey(clientKey))
+        // Track client
+        if (!_clientTracking.ContainsKey(state.Value.ControllerId))
         {
-            _clientTracking[clientKey] = new ClientInfo(clientEndPoint, controllerId);
-            Console.WriteLine($"New client connected: {clientEndPoint} -> Controller #{controllerId}");
+            _clientTracking[state.Value.ControllerId] = new ClientInfo(clientEndPoint);
+            Console.WriteLine($"New client connected: {clientEndPoint} -> Controller #{state.Value.ControllerId}");
         }
         
-        var clientInfo = _clientTracking[clientKey];
+        var clientInfo = _clientTracking[state.Value.ControllerId];
         clientInfo.LastPacketTime = DateTime.Now;
         clientInfo.PacketsReceived++;
-        controllerId = clientInfo.ControllerId;
         
         // Update virtual controller
         try
         {
-            _controllerManager.UpdateController(state.Value, controllerId);
+            _controllerManager.UpdateController(state.Value);
         }
         catch (Exception ex)
         {
@@ -167,28 +161,28 @@ public class NetworkReceiver : IDisposable
             await Task.Delay(1000, cancellationToken);
             
             var now = DateTime.Now;
-            var timeoutKeys = new List<string>();
+            var timeoutIds = new List<byte>();
             
             foreach (var kvp in _clientTracking)
             {
                 var timeSinceLastPacket = now - kvp.Value.LastPacketTime;
                 if (timeSinceLastPacket.TotalMilliseconds > NetworkConfig.CLIENT_TIMEOUT_MS)
                 {
-                    timeoutKeys.Add(kvp.Key);
+                    timeoutIds.Add(kvp.Key);
                 }
             }
             
-            foreach (var clientKey in timeoutKeys)
+            foreach (var controllerId in timeoutIds)
             {
-                var clientInfo = _clientTracking[clientKey];
-                Console.WriteLine($"Client timeout: {clientInfo.EndPoint} (Controller #{clientInfo.ControllerId})");
+                var clientInfo = _clientTracking[controllerId];
+                Console.WriteLine($"Client timeout: {clientInfo.EndPoint} (Controller #{controllerId})");
                 Console.WriteLine($"  Total packets received: {clientInfo.PacketsReceived}");
                 
                 // Reset controller to neutral
-                _controllerManager.ResetController(clientInfo.ControllerId);
+                _controllerManager.ResetController(controllerId);
                 
                 // Remove from tracking
-                _clientTracking.Remove(clientKey);
+                _clientTracking.Remove(controllerId);
             }
         }
     }
@@ -204,12 +198,12 @@ public class NetworkReceiver : IDisposable
     /// <summary>
     /// Gets statistics about connected clients
     /// </summary>
-    public Dictionary<string, (IPEndPoint EndPoint, byte ControllerId, long PacketsReceived)> GetClientStats()
+    public Dictionary<byte, (IPEndPoint EndPoint, long PacketsReceived)> GetClientStats()
     {
-        var stats = new Dictionary<string, (IPEndPoint, byte, long)>();
+        var stats = new Dictionary<byte, (IPEndPoint, long)>();
         foreach (var kvp in _clientTracking)
         {
-            stats[kvp.Key] = (kvp.Value.EndPoint, kvp.Value.ControllerId, kvp.Value.PacketsReceived);
+            stats[kvp.Key] = (kvp.Value.EndPoint, kvp.Value.PacketsReceived);
         }
         return stats;
     }
