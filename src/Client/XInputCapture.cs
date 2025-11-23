@@ -46,7 +46,7 @@ public class XInputCapture : IDisposable
     }
     
     private readonly int _controllerIndex;
-    private uint _lastPacketNumber = 0;
+    private byte _sequenceNumber = 0;
     private bool _isConnected = false;
     
     public bool IsConnected => _isConnected;
@@ -83,20 +83,23 @@ public class XInputCapture : IDisposable
         }
         
         _isConnected = true;
-        _lastPacketNumber = xstate.dwPacketNumber;
         
-        // Convert XInput state to our ControllerState
+        // Increment sequence number (wraps at 255)
+        _sequenceNumber++;
+        
+        // Convert XInput state to our optimized ControllerState
+        // Use EncodeStick to compress 16-bit values to 8-bit
         return new ControllerState
         {
+            Flags = 0, // No special flags for now
+            Sequence = _sequenceNumber,
             Buttons = xstate.Gamepad.wButtons,
+            LeftStickX = ControllerState.EncodeStick(xstate.Gamepad.sThumbLX),
+            LeftStickY = ControllerState.EncodeStick(xstate.Gamepad.sThumbLY),
+            RightStickX = ControllerState.EncodeStick(xstate.Gamepad.sThumbRX),
+            RightStickY = ControllerState.EncodeStick(xstate.Gamepad.sThumbRY),
             LeftTrigger = xstate.Gamepad.bLeftTrigger,
-            RightTrigger = xstate.Gamepad.bRightTrigger,
-            LeftThumbX = xstate.Gamepad.sThumbLX,
-            LeftThumbY = xstate.Gamepad.sThumbLY,
-            RightThumbX = xstate.Gamepad.sThumbRX,
-            RightThumbY = xstate.Gamepad.sThumbRY,
-            ControllerId = (byte)_controllerIndex,
-            PacketNumber = xstate.dwPacketNumber
+            RightTrigger = xstate.Gamepad.bRightTrigger
         };
     }
     
