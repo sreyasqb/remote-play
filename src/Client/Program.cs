@@ -107,10 +107,10 @@ class Program
                     state.Value.Buttons != lastState.Value.Buttons ||
                     state.Value.LeftTrigger != lastState.Value.LeftTrigger ||
                     state.Value.RightTrigger != lastState.Value.RightTrigger ||
-                    Math.Abs(state.Value.LeftThumbX - lastState.Value.LeftThumbX) > 500 ||
-                    Math.Abs(state.Value.LeftThumbY - lastState.Value.LeftThumbY) > 500 ||
-                    Math.Abs(state.Value.RightThumbX - lastState.Value.RightThumbX) > 500 ||
-                    Math.Abs(state.Value.RightThumbY - lastState.Value.RightThumbY) > 500)
+                    Math.Abs(state.Value.LeftStickX - lastState.Value.LeftStickX) > 5 ||
+                    Math.Abs(state.Value.LeftStickY - lastState.Value.LeftStickY) > 5 ||
+                    Math.Abs(state.Value.RightStickX - lastState.Value.RightStickX) > 5 ||
+                    Math.Abs(state.Value.RightStickY - lastState.Value.RightStickY) > 5)
                 {
                     shouldSend = true;
                 }
