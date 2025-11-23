@@ -121,13 +121,6 @@ class Program
                 await network.SendControllerStateAsync(state.Value);
                 packetsSent++;
                 lastState = state;
-                
-                // Debug: Log first few packets
-                if (packetsSent <= 5 || packetsSent % 100 == 0)
-                {
-                    Console.WriteLine();
-                    Console.WriteLine($"[DEBUG] Sent packet #{packetsSent} to {serverIp}:{port}");
-                }
             }
             
             // Update statistics every second

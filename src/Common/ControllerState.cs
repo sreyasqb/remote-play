@@ -70,8 +70,10 @@ public struct ControllerState
     public bool HasInput()
     {
         return Buttons != 0 || LeftTrigger != 0 || RightTrigger != 0 ||
-               Math.Abs(LeftThumbX) > 1000 || Math.Abs(LeftThumbY) > 1000 ||
-               Math.Abs(RightThumbX) > 1000 || Math.Abs(RightThumbY) > 1000;
+               (LeftThumbX < -1000 || LeftThumbX > 1000) ||
+               (LeftThumbY < -1000 || LeftThumbY > 1000) ||
+               (RightThumbX < -1000 || RightThumbX > 1000) ||
+               (RightThumbY < -1000 || RightThumbY > 1000);
     }
     
     public override string ToString()

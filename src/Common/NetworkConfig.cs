@@ -23,7 +23,7 @@ public static class NetworkConfig
     /// <summary>
     /// Controller polling interval in milliseconds (client-side)
     /// </summary>
-    public const int POLLING_INTERVAL_MS = 8; // ~120 Hz
+    public const int POLLING_INTERVAL_MS = 1; // ~1000 Hz for instant response
     
     /// <summary>
     /// Maximum packet size in bytes
