@@ -4,52 +4,53 @@ using System.Runtime.InteropServices;
 namespace RemotePlay.Common;
 
 /// <summary>
-/// Handles serialization and deserialization of ControllerState for network transmission
-/// Uses binary format for minimal packet size
+/// Ultra-fast serialization for 16-byte controller packets
+/// Uses direct byte-level operations instead of Marshal for maximum performance
 /// </summary>
 public static class PacketSerializer
 {
-    // Packet format: [MAGIC][VERSION][CONTROLLER_STATE]
-    private const uint MAGIC_NUMBER = 0x52504C59; // "RPLY" in hex
-    private const byte PROTOCOL_VERSION = 1;
-    
-    // Calculate packet size (using static readonly because Marshal.SizeOf is not a compile-time constant)
-    public static readonly int PACKET_SIZE = sizeof(uint) + sizeof(byte) + Marshal.SizeOf<ControllerState>();
+    // Exact packet size: 16 bytes (Parsec/Moonlight style)
+    public const int PACKET_SIZE = 16;
     
     /// <summary>
-    /// Serializes a ControllerState into a byte array for network transmission
+    /// Serializes a ControllerState into a 16-byte array for network transmission
+    /// Direct byte-level serialization for maximum performance
     /// </summary>
     public static byte[] Serialize(ControllerState state)
     {
         byte[] packet = new byte[PACKET_SIZE];
-        int offset = 0;
         
-        // Write magic number
-        BitConverter.GetBytes(MAGIC_NUMBER).CopyTo(packet, offset);
-        offset += sizeof(uint);
+        // Offset 0-1: Header
+        packet[0] = state.Flags;
+        packet[1] = state.Sequence;
         
-        // Write protocol version
-        packet[offset] = PROTOCOL_VERSION;
-        offset += sizeof(byte);
+        // Offset 2-3: Buttons (little-endian)
+        packet[2] = (byte)(state.Buttons & 0xFF);
+        packet[3] = (byte)((state.Buttons >> 8) & 0xFF);
         
-        // Write controller state
-        int stateSize = Marshal.SizeOf<ControllerState>();
-        IntPtr ptr = Marshal.AllocHGlobal(stateSize);
-        try
-        {
-            Marshal.StructureToPtr(state, ptr, false);
-            Marshal.Copy(ptr, packet, offset, stateSize);
-        }
-        finally
-        {
-            Marshal.FreeHGlobal(ptr);
-        }
+        // Offset 4-7: Analog sticks (8-bit signed)
+        packet[4] = (byte)state.LeftStickX;
+        packet[5] = (byte)state.LeftStickY;
+        packet[6] = (byte)state.RightStickX;
+        packet[7] = (byte)state.RightStickY;
+        
+        // Offset 8-9: Triggers
+        packet[8] = state.LeftTrigger;
+        packet[9] = state.RightTrigger;
+        
+        // Offset 10-15: Reserved (already zero-initialized)
+        packet[10] = state.Reserved1;
+        packet[11] = state.Reserved2;
+        packet[12] = state.Reserved3;
+        packet[13] = state.Reserved4;
+        packet[14] = state.Reserved5;
+        packet[15] = state.Reserved6;
         
         return packet;
     }
     
     /// <summary>
-    /// Deserializes a byte array into a ControllerState
+    /// Deserializes a 16-byte array into a ControllerState
     /// Returns null if the packet is invalid
     /// </summary>
     public static ControllerState? Deserialize(byte[] packet)
@@ -59,53 +60,51 @@ public static class PacketSerializer
             return null;
         }
         
-        int offset = 0;
+        ControllerState state = new ControllerState();
         
-        // Verify magic number
-        uint magic = BitConverter.ToUInt32(packet, offset);
-        offset += sizeof(uint);
+        // Offset 0-1: Header
+        state.Flags = packet[0];
+        state.Sequence = packet[1];
         
-        if (magic != MAGIC_NUMBER)
-        {
-            return null;
-        }
+        // Offset 2-3: Buttons (little-endian)
+        state.Buttons = (ushort)(packet[2] | (packet[3] << 8));
         
-        // Verify protocol version
-        byte version = packet[offset];
-        offset += sizeof(byte);
+        // Offset 4-7: Analog sticks (8-bit signed)
+        state.LeftStickX = (sbyte)packet[4];
+        state.LeftStickY = (sbyte)packet[5];
+        state.RightStickX = (sbyte)packet[6];
+        state.RightStickY = (sbyte)packet[7];
         
-        if (version != PROTOCOL_VERSION)
-        {
-            return null;
-        }
+        // Offset 8-9: Triggers
+        state.LeftTrigger = packet[8];
+        state.RightTrigger = packet[9];
         
-        // Deserialize controller state
-        int stateSize = Marshal.SizeOf<ControllerState>();
-        IntPtr ptr = Marshal.AllocHGlobal(stateSize);
-        try
-        {
-            Marshal.Copy(packet, offset, ptr, stateSize);
-            return Marshal.PtrToStructure<ControllerState>(ptr);
-        }
-        finally
-        {
-            Marshal.FreeHGlobal(ptr);
-        }
+        // Offset 10-15: Reserved
+        state.Reserved1 = packet[10];
+        state.Reserved2 = packet[11];
+        state.Reserved3 = packet[12];
+        state.Reserved4 = packet[13];
+        state.Reserved5 = packet[14];
+        state.Reserved6 = packet[15];
+        
+        return state;
     }
     
     /// <summary>
     /// Validates if a packet appears to be valid (quick check)
+    /// For the ultra-compact format, we just check size
     /// </summary>
     public static bool IsValidPacket(byte[] packet)
     {
-        if (packet == null || packet.Length < sizeof(uint) + sizeof(byte))
-        {
-            return false;
-        }
-        
-        uint magic = BitConverter.ToUInt32(packet, 0);
-        byte version = packet[sizeof(uint)];
-        
-        return magic == MAGIC_NUMBER && version == PROTOCOL_VERSION;
+        return packet != null && packet.Length >= PACKET_SIZE;
+    }
+    
+    /// <summary>
+    /// Gets the size of the ControllerState structure for verification
+    /// Should return 16 bytes
+    /// </summary>
+    public static int GetStructSize()
+    {
+        return Marshal.SizeOf<ControllerState>();
     }
 }
