@@ -139,6 +139,7 @@ class Program
             Thread.Sleep(NetworkConfig.POLLING_INTERVAL_MS);
         }
         
+        
         Console.WriteLine();
         Console.WriteLine();
         Console.WriteLine("Shutting down...");

@@ -63,14 +63,14 @@ public class VirtualControllerManager : IDisposable
     /// <summary>
     /// Updates a virtual controller with the provided state
     /// </summary>
-    public void UpdateController(ControllerState state, byte controllerId = 0)
+    public void UpdateController(ControllerState state)
     {
         if (_isDisposed)
         {
             throw new ObjectDisposedException(nameof(VirtualControllerManager));
         }
         
-        var controller = GetOrCreateController(controllerId);
+        var controller = GetOrCreateController(state.ControllerId);
         
         // Map buttons
         controller.SetButtonState(Xbox360Button.A, (state.Buttons & ControllerState.XINPUT_GAMEPAD_A) != 0);
@@ -92,15 +92,15 @@ public class VirtualControllerManager : IDisposable
         controller.SetButtonState(Xbox360Button.Left, (state.Buttons & ControllerState.XINPUT_GAMEPAD_DPAD_LEFT) != 0);
         controller.SetButtonState(Xbox360Button.Right, (state.Buttons & ControllerState.XINPUT_GAMEPAD_DPAD_RIGHT) != 0);
         
-        // Map triggers (already 8-bit, no conversion needed)
+        // Map triggers
         controller.SetSliderValue(Xbox360Slider.LeftTrigger, state.LeftTrigger);
         controller.SetSliderValue(Xbox360Slider.RightTrigger, state.RightTrigger);
         
-        // Map analog sticks - decode 8-bit back to 16-bit for ViGEm
-        controller.SetAxisValue(Xbox360Axis.LeftThumbX, ControllerState.DecodeStick(state.LeftStickX));
-        controller.SetAxisValue(Xbox360Axis.LeftThumbY, ControllerState.DecodeStick(state.LeftStickY));
-        controller.SetAxisValue(Xbox360Axis.RightThumbX, ControllerState.DecodeStick(state.RightStickX));
-        controller.SetAxisValue(Xbox360Axis.RightThumbY, ControllerState.DecodeStick(state.RightStickY));
+        // Map analog sticks
+        controller.SetAxisValue(Xbox360Axis.LeftThumbX, state.LeftThumbX);
+        controller.SetAxisValue(Xbox360Axis.LeftThumbY, state.LeftThumbY);
+        controller.SetAxisValue(Xbox360Axis.RightThumbX, state.RightThumbX);
+        controller.SetAxisValue(Xbox360Axis.RightThumbY, state.RightThumbY);
         
         // Submit the report to the driver
         controller.SubmitReport();
@@ -116,9 +116,12 @@ public class VirtualControllerManager : IDisposable
             return;
         }
         
-        var neutralState = new ControllerState();
+        var neutralState = new ControllerState
+        {
+            ControllerId = controllerId
+        };
         
-        UpdateController(neutralState, controllerId);
+        UpdateController(neutralState);
     }
     
     /// <summary>
