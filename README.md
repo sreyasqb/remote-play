@@ -138,6 +138,25 @@ Perfect for couch co-op games when friends want to play remotely!
    - You should see virtual Xbox 360 controllers appearing
    - Press buttons on the client controller to verify
 
+## 🌍 Playing Over the Internet
+
+You can play with friends who are not on your local network!
+
+### Automatic Setup (UPnP)
+The server now attempts to automatically configure your router using **UPnP**.
+1. Run the Server.
+2. It will display your **Public IP** address.
+3. It will attempt to forward the port automatically.
+4. If successful, simply give your **Public IP** to your friends.
+
+### Manual Setup (If UPnP fails)
+If you see "No UPnP device found" or "Failed", you need to manually forward the port:
+1. Log into your router settings.
+2. Find "Port Forwarding".
+3. Forward **UDP Port 11000** to your PC's local IP address.
+4. Google "What is my IP" to find your Public IP.
+5. Give the Public IP to your friends.
+
 ## 🎯 Usage
 
 ### Server Controls

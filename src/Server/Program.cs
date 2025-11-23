@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Open.Nat;
 using RemotePlay.Common;
 
 namespace RemotePlay.Server;
@@ -49,6 +51,55 @@ class Program
         catch (Exception ex)
         {
             Console.WriteLine($"  Unable to determine IP addresses: {ex.Message}");
+        }
+        Console.WriteLine();
+
+        // Internet Play Setup (UPnP & Public IP)
+        Console.WriteLine("Configuring for Internet Play...");
+        try 
+        {
+            // 1. Get Public IP
+            Console.Write("  Fetching Public IP... ");
+            using (var httpClient = new HttpClient())
+            {
+                try 
+                {
+                    string publicIp = await httpClient.GetStringAsync("https://api.ipify.org");
+                    Console.WriteLine(publicIp);
+                    Console.WriteLine($"  -> Share this IP with your friends: {publicIp}");
+                }
+                catch
+                {
+                    Console.WriteLine("Failed (Could not reach ipify.org)");
+                }
+            }
+
+            // 2. Setup UPnP
+            Console.Write($"  Attempting UPnP Port Forwarding for UDP {port}... ");
+            try
+            {
+                var discoverer = new NatDiscoverer();
+                var cts = new CancellationTokenSource(5000); // 5 second timeout
+                var device = await discoverer.DiscoverDeviceAsync(PortMapper.Upnp, cts);
+                
+                await device.CreatePortMapAsync(new Mapping(Protocol.Udp, port, port, "RemotePlay Server"));
+                Console.WriteLine("Success!");
+                Console.WriteLine("  -> Router configured automatically. Friends can connect directly.");
+            }
+            catch (NatDeviceNotFoundException)
+            {
+                Console.WriteLine("No UPnP device found.");
+                Console.WriteLine("  -> You may need to manually forward port " + port + " on your router.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed ({ex.Message})");
+                Console.WriteLine("  -> You may need to manually forward port " + port + " on your router.");
+            }
+        }
+        catch (Exception ex)
+        {
+             Console.WriteLine($"Error configuring internet play: {ex.Message}");
         }
         Console.WriteLine();
         

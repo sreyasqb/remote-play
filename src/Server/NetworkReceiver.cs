@@ -111,10 +111,13 @@ public class NetworkReceiver : IDisposable
     /// </summary>
     private void ProcessPacket(byte[] data, IPEndPoint clientEndPoint)
     {
+        // Debug: Log ALL incoming packets
+        Console.WriteLine($"[DEBUG] Received {data.Length} bytes from {clientEndPoint}");
+        
         // Validate packet
         if (!PacketSerializer.IsValidPacket(data))
         {
-            Console.WriteLine($"Invalid packet received from {clientEndPoint}");
+            Console.WriteLine($"Invalid packet received from {clientEndPoint} (size: {data.Length} bytes)");
             return;
         }
         

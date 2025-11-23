@@ -34,5 +34,5 @@ public static class NetworkConfig
     /// Send updates only when controller state changes
     /// Set to false to send at a fixed rate regardless of changes
     /// </summary>
-    public const bool SEND_ON_CHANGE = true;
+    public const bool SEND_ON_CHANGE = false; // Changed to false for better responsiveness
 }
