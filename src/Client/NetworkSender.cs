@@ -7,17 +7,16 @@ namespace RemotePlay.Client;
 
 /// <summary>
 /// Handles network communication - sends controller data to server via UDP
+/// Optimized for MINIMUM latency with synchronous sending and no buffering
 /// </summary>
 public class NetworkSender : IDisposable
 {
-    private readonly UdpClient _udpClient;
-    private readonly IPEndPoint _serverEndPoint;
+    private readonly Socket _socket;
+    private readonly EndPoint _serverEndPoint;
     private bool _isDisposed = false;
     
     public NetworkSender(string serverIp, int port = NetworkConfig.DEFAULT_PORT)
     {
-        _udpClient = new UdpClient();
-        
         // Parse server IP
         if (!IPAddress.TryParse(serverIp, out IPAddress? address))
         {
@@ -26,11 +25,23 @@ public class NetworkSender : IDisposable
         
         _serverEndPoint = new IPEndPoint(address, port);
         
+        // Create raw UDP socket for maximum performance
+        _socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+        
+        // CRITICAL: Disable all buffering and delays for minimum latency
+        _socket.SendBufferSize = 0;  // No OS-level send buffering
+        _socket.Blocking = true;      // Synchronous for immediate sending
+        _socket.DontFragment = true;  // Don't fragment packets
+        
+        // Connect to server endpoint (for UDP, this just sets the default destination)
+        _socket.Connect(_serverEndPoint);
+        
         Console.WriteLine($"Network sender initialized. Target: {_serverEndPoint}");
+        Console.WriteLine($"  Low-latency mode: Synchronous, zero buffering");
     }
     
     /// <summary>
-    /// Sends controller state to the server
+    /// Sends controller state to the server IMMEDIATELY (synchronous, no buffering)
     /// </summary>
     public void SendControllerState(ControllerState state)
     {
@@ -42,7 +53,9 @@ public class NetworkSender : IDisposable
         try
         {
             byte[] packet = PacketSerializer.Serialize(state);
-            _udpClient.Send(packet, packet.Length, _serverEndPoint);
+            
+            // Synchronous send - blocks until packet is sent (microseconds)
+            _socket.Send(packet, packet.Length, SocketFlags.None);
         }
         catch (SocketException ex)
         {
@@ -55,36 +68,21 @@ public class NetworkSender : IDisposable
     }
     
     /// <summary>
-    /// Send async (non-blocking)
+    /// Send async (for compatibility, but actually calls synchronous send)
     /// </summary>
-    public async Task SendControllerStateAsync(ControllerState state)
+    public Task SendControllerStateAsync(ControllerState state)
     {
-        if (_isDisposed)
-        {
-            throw new ObjectDisposedException(nameof(NetworkSender));
-        }
-        
-        try
-        {
-            byte[] packet = PacketSerializer.Serialize(state);
-            await _udpClient.SendAsync(packet, packet.Length, _serverEndPoint);
-        }
-        catch (SocketException ex)
-        {
-            Console.WriteLine($"Network error: {ex.Message}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Unexpected error sending data: {ex.Message}");
-        }
+        // Just call synchronous version - it's already fast enough
+        SendControllerState(state);
+        return Task.CompletedTask;
     }
     
     public void Dispose()
     {
         if (!_isDisposed)
         {
-            _udpClient?.Close();
-            _udpClient?.Dispose();
+            _socket?.Close();
+            _socket?.Dispose();
             _isDisposed = true;
         }
     }

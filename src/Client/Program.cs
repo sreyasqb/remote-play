@@ -118,7 +118,7 @@ class Program
             
             if (shouldSend)
             {
-                await network.SendControllerStateAsync(state.Value);
+                network.SendControllerState(state.Value); // Synchronous - no await delay
                 packetsSent++;
                 lastState = state;
             }
@@ -135,8 +135,8 @@ class Program
                 lastStatsUpdate = DateTime.Now;
             }
             
-            // Polling interval
-            await Task.Delay(NetworkConfig.POLLING_INTERVAL_MS);
+            // Polling interval - use Thread.Sleep for more precise timing than Task.Delay
+            Thread.Sleep(NetworkConfig.POLLING_INTERVAL_MS);
         }
         
         Console.WriteLine();
